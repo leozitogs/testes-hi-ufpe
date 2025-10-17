@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "path";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -47,7 +48,14 @@ async function startServer() {
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // Serve os arquivos estáticos do frontend (após o build)
+    const publicDir = path.join(process.cwd(), "dist", "public");
+    app.use(express.static(publicDir));
+
+    // Para todas as rotas que não são API, serve o index.html (fallback do roteamento do frontend)
+    app.get("*", (req, res) => {
+        res.sendFile(path.resolve(publicDir, "index.html"));
+    });
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
