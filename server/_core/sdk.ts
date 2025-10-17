@@ -257,6 +257,24 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
+    // Temporariamente desabilitando a autenticação para desenvolvimento local
+    console.warn("[Auth] Autenticação temporariamente desabilitada. Retornando usuário mock.");
+    return {
+      id: "mock_user_id",
+      name: "Usuário Mock",
+      email: "mock@example.com",
+      loginMethod: "mock",
+      role: "user", // Adicionado para corresponder ao schema
+      matricula: null, // Adicionado para corresponder ao schema
+      curso: null, // Adicionado para corresponder ao schema
+      periodo: null, // Adicionado para corresponder ao schema
+      createdAt: new Date(),
+      lastSignedIn: new Date(),
+    };
+    // Fim da desativação temporária
+
+
+    /*
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
@@ -298,6 +316,7 @@ class SDKServer {
     });
 
     return user;
+    */
   }
 }
 

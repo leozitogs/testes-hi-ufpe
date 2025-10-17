@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
-import { storagePut } from "./storage";
+import { storagePut } from "../server/storage";
 import * as db from "./db";
 
 // Procedure para admin
