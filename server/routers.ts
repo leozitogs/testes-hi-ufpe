@@ -59,8 +59,8 @@ export const appRouter = router({
           disciplinaId: disciplina.id,
           alunoId: ctx.user.id,
           periodo: input.periodo,
-            mediaMinima: "5",
-          frequenciaMinima: "75",",
+          mediaMinima: "5.00",
+          frequenciaMinima: 75,
         });
         return { disciplina, matricula };
       }),
@@ -87,9 +87,32 @@ export const appRouter = router({
 
   // ===== MATRICULAS =====
   matriculas: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
+    // alias compatível com frontend antigo
+    minhas: protectedProcedure.query(async ({ ctx }) => {
       return await db.getMatriculasByAluno(ctx.user.id);
     }),
+
+    // list agora aceita filtros opcionais
+    list: protectedProcedure
+      .input(z.object({ periodo: z.string().optional(), alunoId: z.string().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        const alunoId = input?.alunoId ?? ctx.user.id;
+        const matriculas = await db.getMatriculasByAluno(alunoId);
+
+        // normaliza para any[] para lidar com variações de shape retornado pelo DB
+        const matriculasAny = matriculas as any[];
+
+        if (input?.periodo) {
+          return matriculasAny.filter((m) => {
+            const periodoFromMatricula = m?.matricula?.periodo;
+            const periodoTopLevel = m?.periodo;
+            const periodo = periodoFromMatricula ?? periodoTopLevel ?? "";
+            return periodo === input.periodo;
+          });
+        }
+
+        return matriculasAny;
+      }),
 
     get: protectedProcedure
       .input(z.object({ id: z.string() }))
@@ -102,14 +125,27 @@ export const appRouter = router({
         id: z.string(),
         metodoAvaliacaoId: z.string().optional(),
         mediaCalculada: z.string().optional(),
+        // manter como número (ajuste conforme seu DB)
         mediaMinima: z.number().optional(),
         frequenciaMinima: z.number().optional(),
         faltas: z.number().optional(),
         media: z.string().optional(),
-        status: z.string().optional(),
+        status: z.enum(["cursando", "aprovado", "reprovado", "trancado"]).optional(),
       }))
       .mutation(async ({ input }) => {
-        return await db.updateMatricula(input.id, { ...input, mediaMinima: input.mediaMinima?.toString(), frequenciaMinima: input.frequenciaMinima?.toString(), faltas: input.faltas });
+        // normalize payload conforme a assinatura do seu db.updateMatricula
+        const payload: any = { ...input };
+
+        // Se o seu DB espera strings para some fields, converta explicitamente aqui:
+        // ex: payload.mediaMinima = typeof input.mediaMinima === 'number' ? input.mediaMinima.toString() : input.mediaMinima;
+
+        // Valida status para garantir enum correto
+        if (typeof input.status === 'string') {
+          const allowed = ["cursando", "aprovado", "reprovado", "trancado"];
+          payload.status = allowed.includes(input.status) ? input.status : undefined;
+        }
+
+        return await db.updateMatricula(input.id, payload);
       }),
 
     delete: protectedProcedure
@@ -260,6 +296,37 @@ export const appRouter = router({
         return await db.getHorariosByDisciplina(matricula.disciplinaId);
       }),
 
+    // NOVO: lista horários por aluno (aceita alunoId opcional)
+    listByAluno: protectedProcedure
+      .input(z.object({ alunoId: z.string().optional(), periodo: z.string().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        const alunoId = input?.alunoId ?? ctx.user.id;
+        const matriculas = await db.getMatriculasByAluno(alunoId);
+        const resultados: any[] = [];
+        for (const m of (matriculas as any[])) {
+          const disciplinaId = m.matricula?.disciplinaId ?? m.disciplina?.id ?? m.disciplinaId;
+          if (!disciplinaId) continue;
+          const hs = await db.getHorariosByDisciplina(disciplinaId);
+          resultados.push(...(hs || []));
+        }
+        return resultados;
+      }),
+
+    // NOVO: compatibilidade com frontend antigo "meusHorarios"
+    meusHorarios: protectedProcedure
+      .input(z.object({ periodo: z.string().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        const matriculas = await db.getMatriculasByAluno(ctx.user.id);
+        const resultados: any[] = [];
+        for (const m of (matriculas as any[])) {
+          const disciplinaId = m.matricula?.disciplinaId ?? m.disciplina?.id ?? m.disciplinaId;
+          if (!disciplinaId) continue;
+          const hs = await db.getHorariosByDisciplina(disciplinaId);
+          resultados.push(...(hs || []));
+        }
+        return resultados;
+      }),
+
     delete: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ input }) => {
@@ -280,9 +347,13 @@ export const appRouter = router({
         return await db.createComunicado({ ...input, autor: ctx.user.name || 'Desconhecido', autorId: ctx.user.id });
       }),
 
-    list: publicProcedure.query(async () => {
-      return await db.getComunicados();
-    }),
+    list: publicProcedure
+      .input(z.object({ limit: z.number().optional() }).optional())
+      .query(async ({ input }) => {
+        const res = await db.getComunicados();
+        if (input?.limit) return res.slice(0, input.limit);
+        return res;
+      }),
 
     get: publicProcedure
       .input(z.object({ id: z.string() }))
@@ -293,6 +364,14 @@ export const appRouter = router({
 
   // ===== CHAT =====
   chat: router({
+    // compatibilidade: obter conversa por id
+    getConversa: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .query(async ({ input }) => {
+        const mensagens = await db.getMensagens(input.id);
+        return { id: input.id, mensagens };
+      }),
+
     enviarMensagem: protectedProcedure
       .input(z.object({
         conversaId: z.string().optional(),
@@ -314,7 +393,17 @@ export const appRouter = router({
 
         // Gerar contexto para a IA
         const matriculasAluno = await db.getMatriculasByAluno(usuario.id);
-        const contextoDisciplinas = matriculasAluno.map(m => `Disciplina: ${m.disciplina.nome} (${m.disciplina.codigo}), Período: ${m.matricula.periodo}, Professor: ${m.professor?.nome || 'Não informado'}, Média: ${m.matricula.media ?? 'N/A'}, Status: ${m.matricula.status ?? 'N/A'}, Faltas: ${m.matricula.faltas ?? 0}/${m.disciplina.cargaHoraria ? Math.floor(m.disciplina.cargaHoraria * 0.25) : 'N/A'}`).join('\n');
+
+        // build contexto defensivamente
+        const contextoDisciplinas = (matriculasAluno as any[]).map(m => {
+          const mat = m?.matricula ?? {};
+          const disciplina = m?.disciplina ?? {};
+          const periodo = mat?.periodo ?? m?.periodo ?? 'N/A';
+          const media = mat?.media ?? m?.media ?? 'N/A';
+          const faltas = mat?.faltas ?? m?.faltas ?? 0;
+          const status = mat?.status ?? m?.status ?? 'N/A';
+          return `Disciplina: ${disciplina?.nome ?? 'N/A'} (${disciplina?.codigo ?? 'N/A'}), Período: ${periodo}, Média: ${media}, Faltas: ${faltas}, Status: ${status}`;
+        }).join('\n');
 
         const contextoSistema = `Você é o Hi, assistente virtual do Hub Inteligente UFPE.\n\nVocê pode executar as seguintes ações para ajudar o aluno:\n- Consultar médias e notas\n- Lançar notas em avaliações\n- Registrar faltas\n- Calcular projeções e simulações\n- Consultar horários e próximas aulas\n- Consultar situação geral\n\nQuando o aluno mencionar uma nota, falta ou quiser saber informações, USE AS FUNÇÕES DISPONÍVEIS.\n\nInformações do usuário:\n- Nome: ${usuario.name || 'Não informado'}\n- Curso: ${usuario.curso}\n- Período: ${usuario.periodo}\n\nDisciplinas do aluno:\n${contextoDisciplinas}\n\nHistórico de conversas:\n${(await db.getMensagens(conversaId as string)).map(m => `${m.role}: ${m.conteudo}`).join('\n')}\n`;
 
@@ -380,3 +469,6 @@ export const appRouter = router({
       }),
   }),
 });
+
+// export type para uso no client
+export type AppRouter = typeof appRouter;

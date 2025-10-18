@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 export default function Horarios() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: horarios } = trpc.horarios.meusHorarios.useQuery({ periodo: "2025.1" }, { enabled: isAuthenticated });
+  const { data: horarios } = trpc.horarios.listByAluno.useQuery({ periodo: "2025.1" }, { enabled: isAuthenticated });
 
   if (!isAuthenticated) {
     return <div className="min-h-screen flex items-center justify-center"><Card className="p-6"><Button asChild><a href={getLoginUrl()}>Login</a></Button></Card></div>;

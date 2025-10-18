@@ -1,57 +1,56 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
-import { trpc } from "@/lib/trpc";
-import { ArrowLeft, TrendingUp } from "lucide-react";
-import { useLocation } from "wouter";
+import React from "react";
+import { trpc } from "../lib/trpc";
+import { useAuth } from "../_core/hooks/useAuth"; // <-- named export
 
-export default function Notas() {
-  const { isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
-  const { data: matriculas } = trpc.matriculas.minhas.useQuery({ periodo: "2025.1" }, { enabled: isAuthenticated });
+const Notas: React.FC = () => {
+  const { isAuthenticated, user } = useAuth();
 
-  if (!isAuthenticated) {
-    return <div className="min-h-screen flex items-center justify-center"><Card className="p-6"><Button asChild><a href={getLoginUrl()}>Login</a></Button></Card></div>;
-  }
+  const { data: matriculas, isLoading } = trpc.matriculas.list.useQuery(
+    { periodo: "2025.1", alunoId: user?.id ?? "" },
+    { enabled: isAuthenticated && !!user?.id }
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-primary/5">
-      <header className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
-        <div className="container flex h-16 items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/dashboard")}><ArrowLeft className="h-4 w-4 mr-2" />Voltar</Button>
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <span className="font-bold text-xl">Minhas Notas</span>
-        </div>
-      </header>
-      <div className="container py-8 space-y-6">
-        <div className="grid gap-4">
-          {matriculas && matriculas.length > 0 ? (
-            matriculas.map((item) => (
-              <Card key={item.matricula.id} className="card-hover">
-                <CardHeader>
-                  <CardTitle>{item.disciplina.nome}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{item.disciplina.codigo}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div><p className="text-sm text-muted-foreground">Nota 1</p><p className="text-2xl font-bold">{item.matricula.nota1 ?? '-'}</p></div>
-                    <div><p className="text-sm text-muted-foreground">Nota 2</p><p className="text-2xl font-bold">{item.matricula.nota2 ?? '-'}</p></div>
-                    <div><p className="text-sm text-muted-foreground">Nota 3</p><p className="text-2xl font-bold">{item.matricula.nota3 ?? '-'}</p></div>
-                    <div><p className="text-sm text-muted-foreground">Final</p><p className="text-2xl font-bold">{item.matricula.notaFinal ?? '-'}</p></div>
+    <div className="p-4 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Minhas Notas</h1>
+
+      {isLoading && <div className="text-sm text-gray-500">Carregando...</div>}
+
+      {!isLoading && !matriculas?.length && (
+        <div className="text-sm text-gray-500">Nenhuma matrícula encontrada para o período.</div>
+      )}
+
+      <div className="space-y-4">
+        {matriculas?.map((m) => {
+          const matricula = (m as any).matricula ?? m;
+          const disciplina = (m as any).disciplina ?? null;
+
+          const nome = disciplina?.nome ?? "Disciplina desconhecida";
+          const codigo = disciplina?.codigo ?? "";
+          const media = matricula?.media ?? matricula?.mediaCalculada ?? "N/A";
+          const faltas = matricula?.faltas ?? 0;
+          const status = matricula?.status ?? "N/A";
+
+          return (
+            <div key={matricula?.id ?? (disciplina?.id ?? Math.random())} className="border rounded p-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="font-medium">
+                    {nome} {codigo && <span className="text-sm text-gray-500">({codigo})</span>}
                   </div>
-                  <div className="mt-4 pt-4 border-t flex justify-between">
-                    <span className="text-sm text-muted-foreground">Frequência: {item.matricula.frequencia ?? 0}%</span>
-                    <span className={`text-sm font-medium capitalize ${item.matricula.status === 'aprovado' ? 'text-green-600' : item.matricula.status === 'reprovado' ? 'text-red-600' : 'text-blue-600'}`}>{item.matricula.status}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card className="p-12 text-center text-muted-foreground">Nenhuma disciplina encontrada</Card>
-          )}
-        </div>
+                  <div className="text-sm text-gray-500">Status: {status}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-semibold">Média: {media}</div>
+                  <div className="text-sm text-gray-500">Faltas: {faltas}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
+};
+
+export default Notas;

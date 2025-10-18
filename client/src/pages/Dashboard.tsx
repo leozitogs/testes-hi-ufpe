@@ -70,11 +70,12 @@ export default function Dashboard() {
   const { user, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
 
-	  const { data: comunicados } = trpc.comunicados.list.useQuery({ limit: 5 });
-	  const { data: matriculas } = trpc.matriculas.minhas.useQuery({ periodo: "2025.1" }, {
+	  const { data: comunicados } = trpc.comunicados.list.useQuery();
+	  const { data: matriculas } = trpc.matriculas.list.useQuery(undefined, {
 	    enabled: isAuthenticated
 	  });
-	  const { data: horarios } = trpc.horarios.meusHorarios.useQuery({ periodo: "2025.1" }, {
+	  const { data: horarios } = trpc.horarios.listByAluno.useQuery({ alunoId: user?.id || 
+              '', periodo: "2025.1" }, {
 	    enabled: isAuthenticated
 	  });
 

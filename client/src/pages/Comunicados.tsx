@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 export default function Comunicados() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: comunicados } = trpc.comunicados.list.useQuery({});
+  const { data: comunicados } = trpc.comunicados.list.useQuery();
 
   if (!isAuthenticated) {
     return <div className="min-h-screen flex items-center justify-center"><Card className="p-6"><Button asChild><a href={getLoginUrl()}>Login</a></Button></Card></div>;
