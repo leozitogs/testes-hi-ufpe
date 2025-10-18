@@ -265,9 +265,11 @@ export async function getMatriculasByAluno(alunoId: string, periodo?: string) {
     .select({
       matricula: matriculas,
       disciplina: disciplinas,
+      professor: professores,
     })
     .from(matriculas)
     .innerJoin(disciplinas, eq(matriculas.disciplinaId, disciplinas.id))
+    .leftJoin(professores, eq(disciplinas.professorId, professores.id))
     .where(conditions)
     .orderBy(disciplinas.nome);
   

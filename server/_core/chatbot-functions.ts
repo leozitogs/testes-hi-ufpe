@@ -476,7 +476,7 @@ async function consultarFaltas(alunoId: string, disciplinaNome: string) {
       disciplina: matricula.disciplina.nome,
       total_faltas: matricula.matricula.faltas || 0,
       frequencia: matricula.matricula.frequencia || 100,
-      limite_faltas: Math.floor(matricula.disciplina.cargaHoraria * 0.25),
+            limite_faltas: Math.floor((matricula.disciplina.cargaHoraria ?? 0) * 0.25),
       faltas_registradas: faltas.map((f: any) => ({
         data: f.data.toISOString().split('T')[0],
         justificada: f.justificada,
@@ -570,6 +570,15 @@ async function consultarSituacaoGeral(alunoId: string) {
     return { error: error.message };
   }
 }
+
+export type ChatbotFunctionEntry = {
+  tool: {
+    name: string;
+    description: string;
+    parameters: { type: string; properties: Record<string, unknown>; required: string[]; };
+  };
+  execute: (args: any) => Promise<any>;
+};
 
 export const chatbotFunctions = {
   consultar_media: {
