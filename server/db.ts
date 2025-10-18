@@ -4,8 +4,11 @@ import {
   InsertUser, users, 
   disciplinas, professores, horarios, matriculas, 
   comunicados, conversas, mensagens, uploads, eventos,
+  metodosAvaliacao, avaliacoes, registroFaltas,
   Disciplina, Professor, Horario, Matricula, Comunicado,
-  Conversa, Mensagem, Upload, Evento
+  Conversa, Mensagem, Upload, Evento,
+  MetodoAvaliacao, Avaliacao, RegistroFalta,
+  InsertDisciplina, InsertMatricula, InsertMetodoAvaliacao, InsertAvaliacao, InsertRegistroFalta, InsertHorario
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -96,11 +99,69 @@ export async function getDisciplinas(): Promise<Disciplina[]> {
   return await db.select().from(disciplinas).orderBy(disciplinas.codigo);
 }
 
-export async function getDisciplina(id: string): Promise<Disciplina | undefined> {
+export async function getDisciplina(id: string): Promise<Disciplina | null> {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
   const result = await db.select().from(disciplinas).where(eq(disciplinas.id, id)).limit(1);
-  return result[0];
+  return result[0] || null;
+}
+
+export async function createDisciplina(disciplina: InsertDisciplina): Promise<Disciplina> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = disciplina.id || `disc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(disciplinas).values({
+    ...disciplina,
+    id,
+  });
+  
+  const [result] = await db.select().from(disciplinas).where(eq(disciplinas.id, id));
+  return result;
+}
+
+export async function getDisciplinasByAluno(alunoId: string, periodo?: string): Promise<Disciplina[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  let conditions = eq(matriculas.alunoId, alunoId);
+  
+  if (periodo) {
+    conditions = and(
+      eq(matriculas.alunoId, alunoId),
+      eq(matriculas.periodo, periodo)
+    ) as any;
+  }
+  
+  const results = await db
+    .select({ disciplina: disciplinas })
+    .from(disciplinas)
+    .innerJoin(matriculas, eq(disciplinas.id, matriculas.disciplinaId))
+    .where(conditions);
+  
+  return results.map(r => r.disciplina);
+}
+
+export async function updateDisciplina(id: string, data: Partial<InsertDisciplina>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(disciplinas).set(data).where(eq(disciplinas.id, id));
+}
+
+export async function deleteDisciplina(id: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Deletar matrículas associadas
+  await db.delete(matriculas).where(eq(matriculas.disciplinaId, id));
+  
+  // Deletar horários associados
+  await db.delete(horarios).where(eq(horarios.disciplinaId, id));
+  
+  // Deletar disciplina
+  await db.delete(disciplinas).where(eq(disciplinas.id, id));
 }
 
 // ===== PROFESSORES =====
@@ -161,6 +222,35 @@ export async function getHorariosByAluno(alunoId: string, periodo: string) {
   return result;
 }
 
+export async function getHorariosByDisciplina(disciplinaId: string): Promise<Horario[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(horarios).where(eq(horarios.disciplinaId, disciplinaId));
+}
+
+export async function createHorario(horario: InsertHorario): Promise<Horario> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = horario.id || `hora_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(horarios).values({
+    ...horario,
+    id,
+  });
+  
+  const [result] = await db.select().from(horarios).where(eq(horarios.id, id));
+  return result;
+}
+
+export async function deleteHorario(id: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(horarios).where(eq(horarios.id, id));
+}
+
 // ===== MATRÍCULAS =====
 
 export async function getMatriculasByAluno(alunoId: string, periodo?: string) {
@@ -182,6 +272,292 @@ export async function getMatriculasByAluno(alunoId: string, periodo?: string) {
     .orderBy(disciplinas.nome);
   
   return result;
+}
+
+export async function getMatricula(id: string): Promise<Matricula | null> {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const [result] = await db.select().from(matriculas).where(eq(matriculas.id, id));
+  return result || null;
+}
+
+export async function createMatricula(matricula: InsertMatricula): Promise<Matricula> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = matricula.id || `mat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(matriculas).values({
+    ...matricula,
+    id,
+  });
+  
+  const [result] = await db.select().from(matriculas).where(eq(matriculas.id, id));
+  return result;
+}
+
+export async function updateMatricula(id: string, data: Partial<InsertMatricula>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(matriculas).set({
+    ...data,
+    updatedAt: new Date(),
+  }).where(eq(matriculas.id, id));
+}
+
+export async function deleteMatricula(id: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Buscar método de avaliação associado
+  const [matricula] = await db.select().from(matriculas).where(eq(matriculas.id, id));
+  
+  if (matricula?.metodoAvaliacaoId) {
+    // Deletar avaliações do método
+    await db.delete(avaliacoes).where(eq(avaliacoes.metodoAvaliacaoId, matricula.metodoAvaliacaoId));
+    
+    // Deletar método de avaliação
+    await db.delete(metodosAvaliacao).where(eq(metodosAvaliacao.id, matricula.metodoAvaliacaoId));
+  }
+  
+  // Deletar registro de faltas
+  await db.delete(registroFaltas).where(eq(registroFaltas.matriculaId, id));
+  
+  // Deletar matrícula
+  await db.delete(matriculas).where(eq(matriculas.id, id));
+}
+
+// ===== MÉTODOS DE AVALIAÇÃO =====
+
+export async function createMetodoAvaliacao(metodo: InsertMetodoAvaliacao): Promise<MetodoAvaliacao> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = metodo.id || `metodo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(metodosAvaliacao).values({
+    ...metodo,
+    id,
+  });
+  
+  // Atualizar matrícula com o ID do método
+  await db.update(matriculas).set({
+    metodoAvaliacaoId: id,
+  }).where(eq(matriculas.id, metodo.matriculaId));
+  
+  const [result] = await db.select().from(metodosAvaliacao).where(eq(metodosAvaliacao.id, id));
+  return result;
+}
+
+export async function getMetodoAvaliacaoByMatricula(matriculaId: string): Promise<MetodoAvaliacao | null> {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const [result] = await db.select().from(metodosAvaliacao).where(eq(metodosAvaliacao.matriculaId, matriculaId));
+  return result || null;
+}
+
+export async function updateMetodoAvaliacao(id: string, data: Partial<InsertMetodoAvaliacao>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(metodosAvaliacao).set({
+    ...data,
+    updatedAt: new Date(),
+  }).where(eq(metodosAvaliacao.id, id));
+}
+
+// ===== AVALIAÇÕES =====
+
+export async function createAvaliacao(avaliacao: InsertAvaliacao): Promise<Avaliacao> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = avaliacao.id || `aval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(avaliacoes).values({
+    ...avaliacao,
+    id,
+  });
+  
+  const [result] = await db.select().from(avaliacoes).where(eq(avaliacoes.id, id));
+  
+  // Recalcular média da matrícula
+  await recalcularMedia(avaliacao.metodoAvaliacaoId);
+  
+  return result;
+}
+
+export async function getAvaliacoesByMetodo(metodoAvaliacaoId: string): Promise<Avaliacao[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(avaliacoes).where(eq(avaliacoes.metodoAvaliacaoId, metodoAvaliacaoId));
+}
+
+export async function updateAvaliacao(id: string, data: Partial<InsertAvaliacao>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Buscar avaliação para pegar o metodoAvaliacaoId
+  const [avaliacao] = await db.select().from(avaliacoes).where(eq(avaliacoes.id, id));
+  
+  await db.update(avaliacoes).set({
+    ...data,
+    updatedAt: new Date(),
+  }).where(eq(avaliacoes.id, id));
+  
+  // Recalcular média
+  if (avaliacao) {
+    await recalcularMedia(avaliacao.metodoAvaliacaoId);
+  }
+}
+
+export async function deleteAvaliacao(id: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Buscar avaliação para pegar o metodoAvaliacaoId
+  const [avaliacao] = await db.select().from(avaliacoes).where(eq(avaliacoes.id, id));
+  
+  await db.delete(avaliacoes).where(eq(avaliacoes.id, id));
+  
+  // Recalcular média
+  if (avaliacao) {
+    await recalcularMedia(avaliacao.metodoAvaliacaoId);
+  }
+}
+
+async function recalcularMedia(metodoAvaliacaoId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  
+  // Buscar método de avaliação
+  const [metodo] = await db.select().from(metodosAvaliacao).where(eq(metodosAvaliacao.id, metodoAvaliacaoId));
+  if (!metodo) return;
+  
+  // Buscar todas as avaliações
+  const avaliacoesLista = await db.select().from(avaliacoes).where(eq(avaliacoes.metodoAvaliacaoId, metodoAvaliacaoId));
+  
+  // Calcular média baseado no tipo
+  let media = 0;
+  
+  if (metodo.tipo === "media_ponderada") {
+    let somaNotas = 0;
+    let somaPesos = 0;
+    
+    avaliacoesLista.forEach(aval => {
+      if (aval.notaObtida !== null) {
+        somaNotas += Number(aval.notaObtida) * Number(aval.peso);
+        somaPesos += Number(aval.peso);
+      }
+    });
+    
+    media = somaPesos > 0 ? somaNotas / somaPesos : 0;
+  } else if (metodo.tipo === "media_simples") {
+    const notasValidas = avaliacoesLista.filter(a => a.notaObtida !== null);
+    const soma = notasValidas.reduce((acc, a) => acc + Number(a.notaObtida), 0);
+    media = notasValidas.length > 0 ? soma / notasValidas.length : 0;
+  }
+  
+  // Atualizar média na matrícula
+  await db.update(matriculas).set({
+    mediaCalculada: media.toFixed(2),
+    media: media.toFixed(2),
+    updatedAt: new Date(),
+  }).where(eq(matriculas.id, metodo.matriculaId));
+  
+  // Atualizar status baseado na média
+  const [matricula] = await db.select().from(matriculas).where(eq(matriculas.id, metodo.matriculaId));
+  if (matricula) {
+    const mediaMinima = Number(matricula.mediaMinima) || 5.0;
+    const frequenciaMinima = matricula.frequenciaMinima || 75;
+    const frequenciaAtual = matricula.frequencia || 0;
+    
+    let status: "cursando" | "aprovado" | "reprovado" = "cursando";
+    
+    // Verificar se todas as avaliações foram lançadas
+    const todasLancadas = avaliacoesLista.every(a => a.notaObtida !== null);
+    
+    if (todasLancadas) {
+      if (media >= mediaMinima && frequenciaAtual >= frequenciaMinima) {
+        status = "aprovado";
+      } else {
+        status = "reprovado";
+      }
+    }
+    
+    await db.update(matriculas).set({
+      status,
+      updatedAt: new Date(),
+    }).where(eq(matriculas.id, metodo.matriculaId));
+  }
+}
+
+// ===== REGISTRO DE FALTAS =====
+
+export async function registrarFalta(falta: InsertRegistroFalta): Promise<RegistroFalta> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const id = falta.id || `falta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  await db.insert(registroFaltas).values({
+    ...falta,
+    id,
+  });
+  
+  // Atualizar contador de faltas na matrícula
+  const faltas = await db.select().from(registroFaltas).where(eq(registroFaltas.matriculaId, falta.matriculaId));
+  const totalFaltas = faltas.length;
+  
+  // Calcular frequência (assumindo 60 aulas no semestre)
+  const totalAulas = 60;
+  const frequencia = Math.round(((totalAulas - totalFaltas) / totalAulas) * 100);
+  
+  await db.update(matriculas).set({
+    faltas: totalFaltas,
+    frequencia,
+    updatedAt: new Date(),
+  }).where(eq(matriculas.id, falta.matriculaId));
+  
+  const [result] = await db.select().from(registroFaltas).where(eq(registroFaltas.id, id));
+  return result;
+}
+
+export async function getFaltasByMatricula(matriculaId: string): Promise<RegistroFalta[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(registroFaltas)
+    .where(eq(registroFaltas.matriculaId, matriculaId))
+    .orderBy(desc(registroFaltas.data));
+}
+
+export async function deleteFalta(id: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Buscar falta para pegar o matriculaId
+  const [falta] = await db.select().from(registroFaltas).where(eq(registroFaltas.id, id));
+  
+  await db.delete(registroFaltas).where(eq(registroFaltas.id, id));
+  
+  // Recalcular faltas e frequência
+  if (falta) {
+    const faltas = await db.select().from(registroFaltas).where(eq(registroFaltas.matriculaId, falta.matriculaId));
+    const totalFaltas = faltas.length;
+    const totalAulas = 60;
+    const frequencia = Math.round(((totalAulas - totalFaltas) / totalAulas) * 100);
+    
+    await db.update(matriculas).set({
+      faltas: totalFaltas,
+      frequencia,
+      updatedAt: new Date(),
+    }).where(eq(matriculas.id, falta.matriculaId));
+  }
 }
 
 // ===== COMUNICADOS =====

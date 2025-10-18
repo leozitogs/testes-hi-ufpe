@@ -163,6 +163,7 @@ export const appRouter = router({
         // Buscar informações do usuário para contexto
         const usuario = await db.getUser(ctx.user.id);
         const matriculas = await db.getMatriculasByAluno(ctx.user.id);
+        const horarios = await db.getHorariosByAluno(ctx.user.id, usuario?.periodo || '2025.2');
         
         // Montar contexto do sistema
         let contextoSistema = `Você é o Hi, assistente virtual do Hub Inteligente UFPE. Você é amigável, prestativo e conhece bem a universidade.
@@ -177,6 +178,13 @@ Informações do usuário:
           contextoSistema += `\nDisciplinas matriculadas:\n`;
           matriculas.forEach(m => {
             contextoSistema += `- ${m.disciplina.nome} (${m.disciplina.codigo})\n`;
+          });
+        }
+        
+        if (horarios.length > 0) {
+          contextoSistema += `\nHorários das aulas:\n`;
+          horarios.forEach(h => {
+            contextoSistema += `- ${h.disciplina.nome}: ${h.horario.diaSemana} às ${h.horario.horaInicio}-${h.horario.horaFim} (${h.horario.sala}) - Prof. ${h.professor.nome}\n`;
           });
         }
 

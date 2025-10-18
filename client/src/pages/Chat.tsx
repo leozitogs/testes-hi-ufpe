@@ -20,10 +20,14 @@ export default function Chat() {
     { enabled: !!conversaAtual }
   );
 
+  const utils = trpc.useUtils();
+  
   const enviarMutation = trpc.chat.enviarMensagem.useMutation({
     onSuccess: (data) => {
       setConversaAtual(data.conversaId);
       setMensagem("");
+      // Invalidar a query para recarregar as mensagens
+      utils.chat.getConversa.invalidate({ id: data.conversaId });
     }
   });
 

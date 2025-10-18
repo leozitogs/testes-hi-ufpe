@@ -1,7 +1,8 @@
-import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, boolean } from "drizzle-orm/mysql-core";
+import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, boolean, decimal, date } from "drizzle-orm/mysql-core";
 
 /**
  * Schema do Hi UFPE - Hub Inteligente
+ * Atualizado com sistema de avaliação flexível
  */
 
 // Tabela de usuários (já existente, estendida)
@@ -13,20 +14,24 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin", "professor", "secgrad"]).default("user").notNull(),
   matricula: varchar("matricula", { length: 20 }), // Matrícula do aluno
   curso: varchar("curso", { length: 200 }), // Curso do aluno
-  periodo: int("periodo"), // Período atual
+  periodo: varchar("periodo", { length: 10 }), // Período atual (ex: "2025.2")
   createdAt: timestamp("createdAt").defaultNow(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow(),
 });
 
-// Disciplinas
+// Disciplinas (atualizada para suportar disciplinas criadas por alunos)
 export const disciplinas = mysqlTable("disciplinas", {
   id: varchar("id", { length: 64 }).primaryKey(),
-  codigo: varchar("codigo", { length: 20 }).notNull(), // IF668, etc
+  codigo: varchar("codigo", { length: 20 }), // IF668, etc (opcional para disciplinas do aluno)
   nome: varchar("nome", { length: 200 }).notNull(),
   descricao: text("descricao"),
   creditos: int("creditos"),
+  cargaHoraria: int("cargaHoraria"), // Carga horária total
   departamento: varchar("departamento", { length: 100 }),
   ementa: text("ementa"),
+  professorId: varchar("professorId", { length: 64 }), // FK para professores (opcional)
+  criadoPor: varchar("criadoPor", { length: 64 }), // ID do usuário que criou (null = oficial)
+  oficial: boolean("oficial").default(false).notNull(), // Disciplina oficial da universidade
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
@@ -44,33 +49,83 @@ export const professores = mysqlTable("professores", {
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
-// Horários de aula
+// Horários de aula (atualizada para suportar horários criados por alunos)
 export const horarios = mysqlTable("horarios", {
   id: varchar("id", { length: 64 }).primaryKey(),
   disciplinaId: varchar("disciplinaId", { length: 64 }).notNull(),
-  professorId: varchar("professorId", { length: 64 }).notNull(),
-  diaSemana: mysqlEnum("diaSemana", ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]).notNull(),
+  professorId: varchar("professorId", { length: 64 }), // Opcional
+  diaSemana: mysqlEnum("diaSemana", ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]).notNull(),
   horaInicio: varchar("horaInicio", { length: 5 }).notNull(), // "08:00"
   horaFim: varchar("horaFim", { length: 5 }).notNull(), // "10:00"
-  sala: varchar("sala", { length: 50 }).notNull(),
-  periodo: varchar("periodo", { length: 10 }), // "2025.1"
+  sala: varchar("sala", { length: 50 }),
+  periodo: varchar("periodo", { length: 10 }), // "2025.2"
+  criadoPor: varchar("criadoPor", { length: 64 }), // ID do usuário que criou
+  matriculaId: varchar("matriculaId", { length: 64 }), // FK para matriculas (para horários pessoais)
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
-// Matrículas (alunos em disciplinas)
+// Matrículas (atualizada para suportar avaliações flexíveis)
 export const matriculas = mysqlTable("matriculas", {
   id: varchar("id", { length: 64 }).primaryKey(),
   alunoId: varchar("alunoId", { length: 64 }).notNull(),
   disciplinaId: varchar("disciplinaId", { length: 64 }).notNull(),
-  periodo: varchar("periodo", { length: 10 }).notNull(), // "2025.1"
-  nota1: int("nota1"), // 0-100
-  nota2: int("nota2"),
-  nota3: int("nota3"),
-  notaFinal: int("notaFinal"),
-  frequencia: int("frequencia"), // 0-100
+  periodo: varchar("periodo", { length: 10 }).notNull(), // "2025.2"
+  
+  // Sistema de avaliação flexível
+  metodoAvaliacaoId: varchar("metodoAvaliacaoId", { length: 64 }), // FK para metodos_avaliacao
+  mediaCalculada: decimal("mediaCalculada", { precision: 5, scale: 2 }), // Média calculada automaticamente
+  mediaMinima: decimal("mediaMinima", { precision: 5, scale: 2 }).default("5.00"), // Média mínima para aprovação
+  frequenciaMinima: int("frequenciaMinima").default(75), // Frequência mínima (%)
+  
+  // Campos legados (mantidos para compatibilidade)
+  nota1: decimal("nota1", { precision: 5, scale: 2 }),
+  nota2: decimal("nota2", { precision: 5, scale: 2 }),
+  nota3: decimal("nota3", { precision: 5, scale: 2 }),
+  notaFinal: decimal("notaFinal", { precision: 5, scale: 2 }),
+  media: decimal("media", { precision: 5, scale: 2 }), // Média final
+  frequencia: int("frequencia"), // Frequência atual (%)
+  faltas: int("faltas").default(0), // Número de faltas
+  
   status: mysqlEnum("status", ["cursando", "aprovado", "reprovado", "trancado"]).default("cursando").notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+// NOVA TABELA: Métodos de Avaliação Personalizados
+export const metodosAvaliacao = mysqlTable("metodos_avaliacao", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  matriculaId: varchar("matriculaId", { length: 64 }).notNull(), // FK para matriculas
+  nome: varchar("nome", { length: 200 }).notNull(), // Ex: "2 Provas + 3 APs"
+  descricao: text("descricao"), // Descrição detalhada
+  formula: text("formula").notNull(), // JSON com a fórmula de cálculo
+  tipo: mysqlEnum("tipo", ["media_simples", "media_ponderada", "media_com_substituicao", "personalizado"]).default("media_ponderada").notNull(),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+// NOVA TABELA: Avaliações Individuais
+export const avaliacoes = mysqlTable("avaliacoes", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  metodoAvaliacaoId: varchar("metodoAvaliacaoId", { length: 64 }).notNull(), // FK para metodos_avaliacao
+  nome: varchar("nome", { length: 200 }).notNull(), // "Prova 1", "AP 1", etc
+  tipo: mysqlEnum("tipo", ["prova", "trabalho", "ap", "projeto", "seminario", "exercicio", "outro"]).default("prova").notNull(),
+  peso: decimal("peso", { precision: 5, scale: 2 }).notNull(), // Peso na média
+  notaObtida: decimal("notaObtida", { precision: 5, scale: 2 }), // Nota obtida
+  notaMaxima: decimal("notaMaxima", { precision: 5, scale: 2 }).default("10.00").notNull(), // Nota máxima possível
+  dataAvaliacao: date("dataAvaliacao"), // Data da avaliação
+  observacoes: text("observacoes"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+// NOVA TABELA: Registro de Faltas
+export const registroFaltas = mysqlTable("registro_faltas", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  matriculaId: varchar("matriculaId", { length: 64 }).notNull(), // FK para matriculas
+  data: date("data").notNull(), // Data da falta
+  justificada: boolean("justificada").default(false).notNull(),
+  justificativa: text("justificativa"),
+  createdAt: timestamp("createdAt").defaultNow(),
 });
 
 // Comunicados e avisos
@@ -106,7 +161,7 @@ export const mensagens = mysqlTable("mensagens", {
   conversaId: varchar("conversaId", { length: 64 }).notNull(),
   role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
   conteudo: text("conteudo").notNull(),
-  metadata: text("metadata"), // JSON com informações extras
+  metadata: text("metadata"), // JSON com informações extras (ex: function calls)
   createdAt: timestamp("createdAt").defaultNow(),
 });
 
@@ -152,6 +207,15 @@ export type InsertHorario = typeof horarios.$inferInsert;
 
 export type Matricula = typeof matriculas.$inferSelect;
 export type InsertMatricula = typeof matriculas.$inferInsert;
+
+export type MetodoAvaliacao = typeof metodosAvaliacao.$inferSelect;
+export type InsertMetodoAvaliacao = typeof metodosAvaliacao.$inferInsert;
+
+export type Avaliacao = typeof avaliacoes.$inferSelect;
+export type InsertAvaliacao = typeof avaliacoes.$inferInsert;
+
+export type RegistroFalta = typeof registroFaltas.$inferSelect;
+export type InsertRegistroFalta = typeof registroFaltas.$inferInsert;
 
 export type Comunicado = typeof comunicados.$inferSelect;
 export type InsertComunicado = typeof comunicados.$inferInsert;
