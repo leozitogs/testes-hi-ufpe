@@ -3,27 +3,80 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { 
-  BookOpen, 
-  Calendar, 
-  MessageSquare, 
-  Bell,
-  TrendingUp,
-  Clock,
-  ArrowRight,
-  LogOut,
+	import { 
+	  BookOpen, 
+	  Calendar, 
+	  MessageSquare, 
+	  Bell,
+	  TrendingUp,
+	  Clock,
+	  ArrowRight,
+	  LogOut,
   Home
 } from "lucide-react";
+	import { useMemo } from "react";
+	
+	// Função auxiliar para calcular a próxima aula (mesma lógica que corrigimos no backend)
+	const calculateNextClass = (horarios: any[] | undefined) => {
+	  if (!horarios || horarios.length === 0) return "N/A";
+	
+	  const diasSemana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+	  const agora = new Date();
+	  const diaAtualIndex = agora.getDay() === 0 ? 6 : agora.getDay() - 1; // 0=Dom, 1=Seg... 6=Sáb. Queremos 0=Seg, 1=Ter... 5=Sex
+	  const diaAtual = diasSemana[diaAtualIndex];
+	  const horaAtual = agora.getHours() * 100 + agora.getMinutes();
+	
+	  let nextClass = null;
+	  
+	  // 1. Check today
+	  const aulasHoje = horarios
+	    .filter((h: any) => h.horario.diaSemana === diaAtual)
+	    .sort((a: any, b: any) => a.horario.horaInicio.localeCompare(b.horario.horaInicio));
+	    
+	  for (const aula of aulasHoje) {
+	    const horaInicioAula = parseInt(aula.horario.horaInicio.replace(':', ''));
+	    if (horaInicioAula > horaAtual) {
+	      nextClass = aula;
+	      break;
+	    }
+	  }
+	  
+	  // 2. Check next days
+	  if (!nextClass) {
+	    for (let i = 1; i <= 7; i++) {
+	      const proximoDiaIndex = (diaAtualIndex + i) % diasSemana.length;
+	      const proximoDia = diasSemana[proximoDiaIndex];
+	      
+	      const aulasProximoDia = horarios
+	        .filter((h: any) => h.horario.diaSemana === proximoDia)
+	        .sort((a: any, b: any) => a.horario.horaInicio.localeCompare(b.horario.horaInicio));
+	        
+	      if (aulasProximoDia.length > 0) {
+	        nextClass = aulasProximoDia[0];
+	        break;
+	      }
+	    }
+	  }
+	  
+	  if (nextClass) {
+	    return `${nextClass.horario.horaInicio} (${nextClass.horario.diaSemana.substring(0, 3)})`;
+	  }
+	
+	  return "N/A";
+	};
 import { useLocation } from "wouter";
 
 export default function Dashboard() {
   const { user, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
 
-  const { data: comunicados } = trpc.comunicados.list.useQuery({ limit: 5 });
-  const { data: matriculas } = trpc.matriculas.minhas.useQuery({ periodo: "2025.1" }, {
-    enabled: isAuthenticated
-  });
+	  const { data: comunicados } = trpc.comunicados.list.useQuery({ limit: 5 });
+	  const { data: matriculas } = trpc.matriculas.minhas.useQuery({ periodo: "2025.1" }, {
+	    enabled: isAuthenticated
+	  });
+	  const { data: horarios } = trpc.horarios.meusHorarios.useQuery({ periodo: "2025.1" }, {
+	    enabled: isAuthenticated
+	  });
 
   if (!isAuthenticated) {
     return (
@@ -136,7 +189,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Período</p>
-                  <p className="text-3xl font-bold">2025.1</p>
+	                  <p className="text-3xl font-bold">{user?.periodo || "2025.1"}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-green-600" />
@@ -164,7 +217,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Próxima Aula</p>
-                  <p className="text-3xl font-bold">08:00</p>
+	                  <p className="text-3xl font-bold">{calculateNextClass(horarios)}</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Clock className="h-6 w-6 text-purple-600" />
@@ -298,4 +351,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

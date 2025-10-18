@@ -498,6 +498,38 @@ async function recalcularMedia(metodoAvaliacaoId: string): Promise<void> {
 
 // ===== REGISTRO DE FALTAS =====
 
+async function recalcularFrequencia(matriculaId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // 1. Buscar a matrícula para obter o disciplinaId
+  const [matricula] = await db.select().from(matriculas).where(eq(matriculas.id, matriculaId));
+  if (!matricula) return;
+
+  // 2. Buscar a disciplina para obter a carga horária
+  const [disciplina] = await db.select().from(disciplinas).where(eq(disciplinas.id, matricula.disciplinaId));
+  if (!disciplina) return;
+
+  // 3. Contar o total de faltas registradas
+  const faltas = await db.select().from(registroFaltas).where(eq(registroFaltas.matriculaId, matriculaId));
+  const totalFaltas = faltas.length;
+
+  // 4. Calcular o total de aulas (Assumindo que Carga Horária = Total de Aulas)
+  const totalAulas = Number(disciplina.cargaHoraria);
+  
+  let frequencia = 100;
+  if (totalAulas > 0) {
+    frequencia = Math.round(((totalAulas - totalFaltas) / totalAulas) * 100);
+  }
+
+  // 5. Atualizar a matrícula
+  await db.update(matriculas).set({
+    faltas: totalFaltas,
+    frequencia,
+    updatedAt: new Date(),
+  }).where(eq(matriculas.id, matriculaId));
+}
+
 export async function registrarFalta(falta: InsertRegistroFalta): Promise<RegistroFalta> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -509,19 +541,8 @@ export async function registrarFalta(falta: InsertRegistroFalta): Promise<Regist
     id,
   });
   
-  // Atualizar contador de faltas na matrícula
-  const faltas = await db.select().from(registroFaltas).where(eq(registroFaltas.matriculaId, falta.matriculaId));
-  const totalFaltas = faltas.length;
-  
-  // Calcular frequência (assumindo 60 aulas no semestre)
-  const totalAulas = 60;
-  const frequencia = Math.round(((totalAulas - totalFaltas) / totalAulas) * 100);
-  
-  await db.update(matriculas).set({
-    faltas: totalFaltas,
-    frequencia,
-    updatedAt: new Date(),
-  }).where(eq(matriculas.id, falta.matriculaId));
+  // Recalcular faltas e frequência
+  await recalcularFrequencia(falta.matriculaId);
   
   const [result] = await db.select().from(registroFaltas).where(eq(registroFaltas.id, id));
   return result;
@@ -547,16 +568,7 @@ export async function deleteFalta(id: string): Promise<void> {
   
   // Recalcular faltas e frequência
   if (falta) {
-    const faltas = await db.select().from(registroFaltas).where(eq(registroFaltas.matriculaId, falta.matriculaId));
-    const totalFaltas = faltas.length;
-    const totalAulas = 60;
-    const frequencia = Math.round(((totalAulas - totalFaltas) / totalAulas) * 100);
-    
-    await db.update(matriculas).set({
-      faltas: totalFaltas,
-      frequencia,
-      updatedAt: new Date(),
-    }).where(eq(matriculas.id, falta.matriculaId));
+    await recalcularFrequencia(falta.matriculaId);
   }
 }
 
@@ -642,7 +654,7 @@ export async function createConversa(usuarioId: string, titulo?: string): Promis
   await db.insert(conversas).values({
     id,
     usuarioId,
-    titulo: titulo || "Nova conversa",
+    titulo: titulo ?? "Nova conversa",
   });
   
   return id;
@@ -778,4 +790,3 @@ export async function createEvento(data: {
   
   return id;
 }
-

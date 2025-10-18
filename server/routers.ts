@@ -1,3 +1,4 @@
+// Conteúdo completo do arquivo hiufpe-app/server/routers.ts
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "@shared/const";
@@ -5,8 +6,9 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
-import { storagePut } from "../server/storage";
+import { storagePut } from "./storage";
 import * as db from "./db";
+import { getChatbotFunctions } from "./_core/chatbot-functions"; // Importação adicionada
 
 // Procedure para admin
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -167,13 +169,11 @@ export const appRouter = router({
         
         // Montar contexto do sistema
         let contextoSistema = `Você é o Hi, assistente virtual do Hub Inteligente UFPE. Você é amigável, prestativo e conhece bem a universidade.
-
 Informações do usuário:
 - Nome: ${usuario?.name || 'Estudante'}
 - Curso: ${usuario?.curso || 'Não informado'}
 - Período: ${usuario?.periodo || 'Não informado'}
 `;
-
         if (matriculas.length > 0) {
           contextoSistema += `\nDisciplinas matriculadas:\n`;
           matriculas.forEach(m => {
@@ -187,24 +187,59 @@ Informações do usuário:
             contextoSistema += `- ${h.disciplina.nome}: ${h.horario.diaSemana} às ${h.horario.horaInicio}-${h.horario.horaFim} (${h.horario.sala}) - Prof. ${h.professor.nome}\n`;
           });
         }
-
         contextoSistema += `\nResponda de forma clara, objetiva e em português. Use markdown para formatação quando apropriado.`;
         
         // Preparar mensagens para a IA
         const messages = [
           { role: "system" as const, content: contextoSistema },
           ...ultimasMensagens.map(m => ({
-            role: m.role as "user" | "assistant",
+            role: m.role as "user" | "assistant" | "tool",
             content: m.conteudo,
           })),
         ];
+
+        // Importar funções do chatbot
+        const chatbotFunctions = getChatbotFunctions(ctx.user.id);
+        const tools = Object.values(chatbotFunctions).map(f => f.tool);
         
-        // Chamar IA
-        const resposta = await invokeLLM({ messages });
-        const content = resposta.choices[0]?.message?.content;
-        const respostaTexto = typeof content === 'string' ? content : "Desculpe, não consegui processar sua mensagem.";
+        // Chamar IA com Function Calling
+        let resposta = await invokeLLM({ messages, tools });
+        let content = resposta.choices[0]?.message?.content;
+        let respostaTexto = typeof content === 'string' ? content : "Desculpe, não consegui processar sua mensagem.";
         
-        // Salvar resposta da IA
+        // Loop de Function Calling
+        while (resposta.choices[0]?.message?.tool_calls) {
+          const toolCalls = resposta.choices[0].message.tool_calls;
+          
+          // Adicionar a chamada de função ao histórico
+          messages.push(resposta.choices[0].message as any);
+
+          const toolResponses = [];
+          for (const call of toolCalls) {
+            const functionName = call.function.name as keyof typeof chatbotFunctions;
+            const functionToCall = chatbotFunctions[functionName];
+            const args = JSON.parse(call.function.arguments);
+            
+            // Executar a função
+            const functionResult = await functionToCall.execute(args);
+            
+            // Adicionar o resultado ao histórico
+            toolResponses.push({
+              role: "tool" as const,
+              tool_call_id: call.id,
+              content: JSON.stringify(functionResult),
+            });
+          }
+          
+          messages.push(...toolResponses);
+
+          // Chamar IA novamente com o resultado da função
+          resposta = await invokeLLM({ messages, tools });
+          content = resposta.choices[0]?.message?.content;
+          respostaTexto = typeof content === 'string' ? content : "Desculpe, não consegui processar sua mensagem.";
+        }
+        
+        // Salvar resposta final da IA
         await db.createMensagem({
           conversaId,
           role: "assistant",
@@ -289,4 +324,3 @@ Informações do usuário:
 });
 
 export type AppRouter = typeof appRouter;
-
