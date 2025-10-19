@@ -1,349 +1,176 @@
 # Hi UFPE - Hub Inteligente 🎓
 
-Sistema acadêmico moderno e intuitivo para estudantes da UFPE, com chatbot IA, interface responsiva e experiência superior ao SIGAA tradicional.
-
-## 🚀 Funcionalidades
-
-### ✅ Implementadas
-- **Landing Page Moderna** - Design atrativo com informações do sistema
-- **Dashboard Interativo** - Visão geral das atividades acadêmicas
-- **Chatbot com IA** - Assistente virtual para tirar dúvidas (Gemini API)
-- **Horários** - Visualização clara da grade horária
-- **Notas** - Acompanhamento do desempenho acadêmico
-- **Comunicados** - Avisos e notícias importantes
-- **Painel Administrativo** - Upload de planilhas e gestão de comunicados
-- **Autenticação OAuth** - Login seguro via Manus
-- **Design Responsivo** - Funciona perfeitamente em mobile, tablet e desktop
-- **Tema UFPE** - Cores azul e amarelo da universidade
-
-### 🎨 Design
-- Interface moderna com Tailwind CSS
-- Componentes shadcn/ui
-- Animações suaves
-- Cards com hover effects
-- Gradientes e glassmorphism
-- Totalmente responsivo
+**Versão:** 1.0.0 (17 de Outubro de 2025)
+**Status:** ✅ Pronto para Apresentação
 
-### 🛠️ Stack Tecnológica
+## 📋 Sumário Executivo
 
-**Frontend:**
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- shadcn/ui
-- Wouter (routing)
-- tRPC (type-safe API)
-
-**Backend:**
-- Node.js + Express
-- tRPC 11
-- Drizzle ORM
-- MySQL/TiDB
-- Gemini API (chatbot IA)
-- S3 (armazenamento)
-
-## 📋 Pré-requisitos
-
-- **Node.js** 18+ ([Download](https://nodejs.org/))
-- **pnpm** ([Instalar](https://pnpm.io/installation))
-- **Git** ([Download](https://git-scm.com/))
-
-## 🔧 Instalação no Windows
-
-### 1. Instalar Node.js e pnpm
-
-```bash
-# Instalar Node.js (baixar do site oficial)
-# Depois instalar pnpm globalmente
-npm install -g pnpm
-```
-
-### 2. Clonar/Extrair o Projeto
-
-Se você recebeu o arquivo `manus-webdev://60ad4fb4`:
-- Abra no Manus e faça download
-- Ou extraia o ZIP fornecido
-
-### 3. Instalar Dependências
-
-```bash
-cd hiufpe-app
-pnpm install
-```
-
-### 4. Configurar Variáveis de Ambiente
-
-O projeto já vem com as variáveis configuradas automaticamente pelo Manus. Se for rodar localmente sem Manus, crie um arquivo `.env`:
-
-```env
-# Banco de Dados (fornecido pelo Manus)
-DATABASE_URL=mysql://...
-
-# JWT Secret
-JWT_SECRET=seu-secret-aqui
-
-# OAuth (Manus)
-VITE_APP_ID=seu-app-id
-OAUTH_SERVER_URL=https://api.manus.im
-VITE_OAUTH_PORTAL_URL=https://auth.manus.im
-
-# App Info
-VITE_APP_TITLE=Hi UFPE
-VITE_APP_LOGO=/logo.svg
-
-# APIs Internas (Manus)
-BUILT_IN_FORGE_API_URL=https://api.manus.im
-BUILT_IN_FORGE_API_KEY=sua-chave-aqui
-```
-
-### 5. Inicializar Banco de Dados
-
-```bash
-# Aplicar schema no banco
-pnpm db:push
-```
-
-### 6. Popular Dados de Exemplo (Opcional)
-
-```bash
-# Executar script de seed
-pnpm tsx scripts/seed.ts
-```
-
-### 7. Iniciar Servidor de Desenvolvimento
-
-```bash
-# Inicia frontend e backend simultaneamente
-pnpm dev
-```
-
-O sistema estará disponível em:
-- **Frontend:** http://localhost:5173
-- **Backend:** http://localhost:3000
-
-## 🎯 Como Usar
-
-### Para Estudantes
-
-1. **Acesse a página inicial** e clique em "Entrar"
-2. **Faça login** com suas credenciais Manus
-3. **Explore o Dashboard** com visão geral das atividades
-4. **Use o Chatbot** para tirar dúvidas sobre horários, notas, etc.
-5. **Navegue pelas seções:**
-   - **Horários:** Veja sua grade horária organizada por dia
-   - **Notas:** Acompanhe seu desempenho em cada disciplina
-   - **Comunicados:** Fique por dentro dos avisos importantes
-
-### Para Administradores/Professores
-
-1. **Acesse o Painel Admin** (menu ou /admin)
-2. **Upload de Planilhas:**
-   - Planilhas de horários
-   - Planilhas de notas
-   - Lista de alunos
-3. **Criar Comunicados:**
-   - Avisos gerais
-   - Comunicados acadêmicos
-   - Eventos importantes
-
-## 🗂️ Estrutura do Projeto
-
-```
-hiufpe-app/
-├── client/                 # Frontend React
-│   ├── src/
-│   │   ├── pages/         # Páginas da aplicação
-│   │   │   ├── Home.tsx           # Landing page
-│   │   │   ├── Dashboard.tsx      # Dashboard principal
-│   │   │   ├── Chat.tsx           # Chatbot IA
-│   │   │   ├── Horarios.tsx       # Grade horária
-│   │   │   ├── Notas.tsx          # Notas e desempenho
-│   │   │   ├── Comunicados.tsx    # Avisos
-│   │   │   └── AdminPanel.tsx     # Painel admin
-│   │   ├── components/    # Componentes reutilizáveis
-│   │   ├── lib/          # Configurações (tRPC)
-│   │   └── index.css     # Estilos globais
-│   └── public/           # Assets estáticos
-├── server/               # Backend Express + tRPC
-│   ├── routers.ts       # Rotas da API
-│   ├── db.ts            # Funções de banco de dados
-│   └── _core/           # Configurações internas
-├── drizzle/             # Schema do banco de dados
-│   └── schema.ts        # Definição das tabelas
-├── scripts/             # Scripts utilitários
-│   └── seed.ts          # Popular banco com dados
-└── package.json         # Dependências
-```
-
-## 📊 Banco de Dados
-
-### Tabelas Principais
-
-- **users** - Usuários do sistema (alunos, professores, admin)
-- **disciplinas** - Disciplinas oferecidas
-- **professores** - Cadastro de professores
-- **horarios** - Grade horária das disciplinas
-- **matriculas** - Matrículas dos alunos com notas
-- **comunicados** - Avisos e comunicados
-- **conversas** - Histórico de conversas do chatbot
-- **mensagens** - Mensagens do chatbot
-- **uploads** - Arquivos enviados por administradores
-- **eventos** - Calendário acadêmico (provas, trabalhos, etc.)
-
-## 🤖 Chatbot IA
-
-O chatbot utiliza a **Gemini API** para responder perguntas sobre:
-- Horários de aula
-- Notas e desempenho
-- Disciplinas matriculadas
-- Comunicados importantes
-- Informações gerais da UFPE
-
-### Exemplos de Perguntas
-
-- "Quais são meus horários de hoje?"
-- "Como estão minhas notas?"
-- "Há algum comunicado importante?"
-- "Quando é a próxima prova?"
-- "Qual minha frequência em Cálculo?"
-
-## 🎨 Personalização
-
-### Alterar Cores
-
-Edite `client/src/index.css`:
-
-```css
-:root {
-  --primary: oklch(0.55 0.2 250);  /* Azul UFPE */
-  --secondary: oklch(0.75 0.15 85); /* Amarelo UFPE */
-}
-```
-
-### Alterar Logo
-
-Substitua o arquivo em `client/public/logo.svg` e atualize a variável `VITE_APP_LOGO`.
-
-## 🚀 Deploy
-
-### Opção 1: Vercel (Recomendado)
-
-```bash
-# Instalar Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-```
-
-### Opção 2: Railway
-
-1. Conecte seu repositório no [Railway](https://railway.app)
-2. Configure as variáveis de ambiente
-3. Deploy automático
-
-### Opção 3: Docker
-
-```bash
-# Build
-docker build -t hiufpe-app .
-
-# Run
-docker run -p 3000:3000 hiufpe-app
-```
-
-## 📝 Scripts Disponíveis
-
-```bash
-# Desenvolvimento
-pnpm dev              # Inicia dev server (frontend + backend)
-
-# Build
-pnpm build            # Build para produção
-
-# Banco de Dados
-pnpm db:push          # Aplica schema no banco
-pnpm db:studio        # Abre interface visual do banco
-
-# Testes
-pnpm test             # Executa testes (se configurados)
-
-# Seed
-pnpm tsx scripts/seed.ts  # Popula banco com dados de exemplo
-```
-
-## 🐛 Troubleshooting
-
-### Erro: "Cannot connect to database"
-- Verifique se `DATABASE_URL` está configurado corretamente
-- Certifique-se de que o banco de dados está acessível
-
-### Erro: "Port 3000 already in use"
-- Mude a porta no arquivo de configuração
-- Ou mate o processo: `npx kill-port 3000`
-
-### Chatbot não responde
-- Verifique se `BUILT_IN_FORGE_API_KEY` está configurado
-- Certifique-se de que a API Gemini está acessível
-
-### Páginas em branco após login
-- Limpe o cache do navegador
-- Verifique o console do navegador para erros
-- Reinicie o servidor de desenvolvimento
-
-## 🔐 Segurança
-
-- ✅ Autenticação OAuth via Manus
-- ✅ JWT para sessões
-- ✅ API keys no backend (nunca expostas no frontend)
-- ✅ Validação de dados com Zod
-- ✅ CORS configurado
-- ✅ Sanitização de inputs
-
-## 📱 Responsividade
-
-O sistema foi desenvolvido com **mobile-first** e funciona perfeitamente em:
-- 📱 Smartphones (320px+)
-- 📱 Tablets (768px+)
-- 💻 Desktops (1024px+)
-- 🖥️ Telas grandes (1920px+)
-
-## 🎯 Roadmap Futuro
-
-- [ ] Notificações push
-- [ ] Modo offline (PWA)
-- [ ] Integração com calendário
-- [ ] Sistema de mensagens entre alunos
-- [ ] Fórum de discussões
-- [ ] Biblioteca virtual
-- [ ] Sistema de avaliação de professores
-
-## 👥 Contribuindo
-
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto foi desenvolvido para fins acadêmicos.
-
-## 🙏 Créditos
-
-- **Desenvolvido por:** Equipe Hi UFPE
-- **Universidade:** UFPE - Universidade Federal de Pernambuco
-- **Centro:** CIn - Centro de Informática
-- **Tecnologias:** React, tRPC, Drizzle ORM, Gemini AI
-
-## 📞 Suporte
-
-Para dúvidas ou problemas:
-- Abra uma issue no repositório
-- Entre em contato com a equipe de desenvolvimento
+O **Hi UFPE** é um sistema acadêmico inteligente desenvolvido para revolucionar a experiência do estudante da Universidade Federal de Pernambuco (UFPE), oferecendo uma alternativa moderna, intuitiva e superior ao sistema SIGAA tradicional. O projeto se destaca pela integração de um **Assistente Virtual com Inteligência Artificial** que permite gerenciar disciplinas, notas, horários e frequência de forma natural e conversacional.
+
+O diferencial central é o **Chatbot com IA** que, através da tecnologia de *Function Calling*, consegue executar ações no sistema (como lançar notas ou registrar faltas) e fornecer cálculos e previsões automáticas, transformando tarefas burocráticas em interações simples por linguagem natural.
+
+## 🚀 Funcionalidades Principais
+
+O sistema foi concebido com uma abordagem **Self-Service**, garantindo total autonomia ao aluno na gestão de seus dados acadêmicos.
+
+### 1. Gestão Acadêmica Autônoma
+
+| Funcionalidade | Descrição | Vantagem em relação ao SIGAA |
+| :--- | :--- | :--- |
+| **Self-Service de Disciplinas** | O aluno adiciona e gerencia suas próprias disciplinas, sem depender da administração. | **Autonomia Total** |
+| **Sistema de Avaliação Flexível** | Configuração personalizada do método de avaliação (pesos, provas, trabalhos) por disciplina. | **Flexibilidade** (SIGAA não permite) |
+| **Cálculo Automático de Médias** | Média calculada em tempo real com base no método configurado. | **Automação** (SIGAA exige cálculo manual) |
+| **Grade de Horários Automática** | Visualização em grade semanal gerada automaticamente ao adicionar horários. | **Intuitividade** |
+| **Registro de Faltas** | Gestão e acompanhamento da frequência com alertas automáticos. | **Acompanhamento e Alertas** |
+| **Dashboard Interativo** | Visão geral e personalizável do status acadêmico. | **UX Superior** |
+| **Painel Administrativo** | Interface para upload de planilhas (horários, notas, alunos) e gestão de comunicados (para professores/administradores). | **Gestão Simplificada** |
+
+### 2. Chatbot Inteligente com IA (Diferencial Competitivo)
+
+O assistente virtual utiliza a **OpenAI GPT-4o-mini** e o recurso de *Function Calling* para interagir com o sistema.
+
+#### Funções de IA Implementadas:
+
+| Função | Descrição | Exemplo de Interação |
+| :--- | :--- | :--- |
+| `lancar_nota` | Lança nota em uma avaliação específica. | *"Tirei 8.5 na prova 1 de Desenvolvimento de Software"* |
+| `registrar_falta` | Registra falta em uma disciplina. | *"Faltei na aula de Banco de Dados hoje"* |
+| `consultar_media` | Consulta a média atual em uma disciplina. | *"Qual minha média em Desenvolvimento de Software?"* |
+| `calcular_projecao` | Calcula a nota mínima necessária para aprovação. | *"Quanto preciso tirar na próxima prova para passar?"* |
+| `simular_nota` | Simula a média final com uma nota hipotética. | *"Se eu tirar 7 na prova 2, qual será minha média final?"* |
+| `consultar_faltas` | Consulta o número de faltas e a frequência. | *"Quantas faltas eu tenho em Banco de Dados?"* |
+| `consultar_proxima_aula` | Informa a próxima aula do aluno. | *"Tenho aula amanhã?"* |
+| `consultar_situacao_geral` | Fornece um resumo do status em todas as disciplinas. | *"Qual minha situação em todas as disciplinas?"* |
+
+#### Insights e Alertas Automáticos:
+
+O chatbot é capaz de fornecer **insights e alertas proativos** sobre a situação acadêmica do aluno, como:
+*   **Alerta de Risco:** "⚠️ Atenção! Você está com risco de reprovação em Cálculo (média atual: 4.2)"
+*   **Alerta de Frequência:** Notifica o aluno quando está próximo do limite de faltas.
+*   **Parabéns:** "🎉 Parabéns! Você já está aprovado em Desenvolvimento de Software (média: 8.5)"
+
+## 🏗️ Arquitetura Técnica
+
+O projeto segue uma arquitetura moderna e *full-stack*, utilizando o conceito de *type-safety* de ponta a ponta.
+
+### Stack Tecnológica
+
+| Componente | Tecnologia | Detalhes |
+| :--- | :--- | :--- |
+| **Frontend** | **React 19, TypeScript, Tailwind CSS 4, shadcn/ui** | Interface moderna, responsiva e tipada. Utiliza **Wouter** para roteamento e **React Query** para gestão de cache/estado. |
+| **Backend** | **Node.js, Express, tRPC 11** | Servidor robusto com APIs *type-safe*, garantindo comunicação segura e tipada entre frontend e backend. |
+| **Banco de Dados** | **MySQL/TiDB, Drizzle ORM** | Banco de dados relacional com ORM moderno e *type-safe* para consultas. |
+| **IA** | **OpenAI GPT-4o-mini** | Motor do chatbot, com suporte a **Function Calling** e **Streaming** de respostas. |
+| **Autenticação** | **OAuth via Manus** | Login seguro e padronizado. |
+| **Armazenamento** | **S3** | Utilizado para armazenamento de arquivos, como planilhas de upload. |
+
+### Estrutura do Banco de Dados (10 Tabelas)
+
+O schema do banco de dados (`drizzle/schema.ts`) foi atualizado para suportar todas as funcionalidades de avaliação flexível e registro de faltas, incluindo:
+
+| Tabela | Descrição |
+| :--- | :--- |
+| `users` | Usuários do sistema (alunos, professores, admin). |
+| `disciplinas` | Disciplinas (oficiais e criadas por alunos). |
+| `professores` | Cadastro de professores. |
+| `horarios` | Grade horária das disciplinas. |
+| `matriculas` | Matrículas dos alunos, incluindo `mediaCalculada` e `faltas`. |
+| `metodos_avaliacao` | Armazena métodos de avaliação personalizados (ex: "2 Provas + 3 APs"). |
+| `avaliacoes` | Avaliações individuais (provas, APs, trabalhos) com `peso` e `notaObtida`. |
+| `registro_faltas` | Registro detalhado das faltas dos alunos. |
+| `comunicados` | Avisos e comunicados importantes. |
+| `conversas` + `mensagens` | Histórico de conversas do chatbot. |
+
+### Compatibilidade tRPC (CHANGELOG)
+
+Houve ajustes de compatibilidade (`CHANGELOG-trpc-compat.md`) para garantir a tipagem correta do tRPC após a evolução do projeto, incluindo:
+*   Criação de **Aliases de Rotas** (`matriculas.minhas`, `horarios.meusHorarios`) para manter a compatibilidade com o frontend.
+*   Normalização de *payloads* e validação de `status` com *enums* para proteger contra erros de tipagem.
+*   Resultado: `pnpm check` limpo e tipagem restaurada entre client ↔ server.
+
+## 💻 Configuração e Instalação (Guia Detalhado)
+
+### Pré-requisitos
+
+*   **Node.js** (v18+)
+*   **pnpm**
+*   **Git**
+*   **MySQL** (para ambiente local, pode ser via MySQL Community Server ou XAMPP)
+
+### Guia de Instalação Local (Windows)
+
+1.  **Instalar pnpm:**
+    ```bash
+    npm install -g pnpm
+    ```
+
+2.  **Clonar e Instalar Dependências:**
+    ```bash
+    git clone https://github.com/leozitogs/testes-hi-ufpe.git
+    cd testes-hi-ufpe
+    pnpm install
+    ```
+
+3.  **Configurar Banco de Dados Local (MySQL):**
+    *   Crie um banco de dados chamado `hiufpe`.
+    *   Crie o arquivo `.env` com a string de conexão, por exemplo: `DATABASE_URL=mysql://root:root123@localhost:3306/hiufpe`.
+    *   **Usuários de Teste:** O projeto pode ser testado com usuários de exemplo após o `seed` (ex: `admin@ufpe.br` / `admin123`).
+
+4.  **Inicializar Banco de Dados (Drizzle ORM):**
+    ```bash
+    # Aplica o schema (cria as tabelas)
+    pnpm db:push
+    
+    # Popula o banco com dados reais do CIn 2025.2 (Opcional)
+    pnpm tsx scripts/seed-cin-2025-2.ts
+    ```
+
+5.  **Iniciar o Servidor de Desenvolvimento:**
+    ```bash
+    pnpm dev
+    ```
+    *   **Frontend:** `http://localhost:5173`
+    *   **Backend:** `http://localhost:3000`
+
+### Scripts de Desenvolvimento Úteis
+
+| Comando | Descrição |
+| :--- | :--- |
+| `pnpm dev` | Inicia o servidor de desenvolvimento (frontend e backend). |
+| `pnpm build` | Gera a *build* de produção. |
+| `pnpm db:push` | Aplica o schema Drizzle no banco de dados. |
+| `pnpm db:studio` | Abre a interface visual do Drizzle para o banco de dados. |
+| `pnpm tsx scripts/seed.ts` | Popula o banco com dados de exemplo. |
+| `pnpm check` | Verifica erros de tipagem (TypeScript/tRPC). |
+
+## 🎯 Diferenciais Competitivos
+
+O **Hi UFPE** se posiciona como uma solução superior ao SIGAA, focando na experiência e autonomia do estudante.
+
+| Aspecto | SIGAA | Hi UFPE |
+|:--------|:------|:--------|
+| **Interface** | Antiga, burocrática | Moderna, intuitiva (React + TailwindCSS) |
+| **Gestão de Dados** | Dependente do Administrador | **Self-service** (Aluno gerencia) |
+| **Consultas** | Navegação de menus complexos | **Chatbot com IA** (Linguagem Natural) |
+| **Cálculo de Média** | Manual | **Automático** |
+| **Avaliação Flexível** | ❌ Não suporta | ✅ Suporte total por disciplina |
+| **Inteligência Artificial** | ❌ Não possui | ✅ **GPT-4o-mini com Function Calling** |
+| **Insights** | ❌ Não possui | ✅ Alertas automáticos e projeções de notas |
+
+## 🚀 Próximos Passos (Roadmap Futuro)
+
+1.  **App Mobile** - Versão nativa para iOS e Android.
+2.  **Notificações Push** - Alertas em tempo real.
+3.  **Integração SIGAA** - Importar dados do SIGAA oficial.
+4.  **OAuth UFPE** - Login com credenciais da universidade.
+5.  **Análise de Desempenho** - Gráficos e estatísticas avançadas.
+6.  **Gamificação** - Badges e conquistas.
 
 ---
 
-**Hi UFPE** - Transformando a experiência acadêmica 🎓✨
+**Desenvolvido com ❤️ para a comunidade UFPE**
+
+**Disciplina:** Desenvolvimento de Software  
+**Curso:** Ciência da Computação - UFPE  
+**Período:** 2025.2
 
